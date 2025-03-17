@@ -7,7 +7,7 @@ pygame.init()
 
 # Window settings
 WIDTH = 400
-HEIGHT = 500  # Extra height for the button
+HEIGHT = 500
 GRID_SIZE = 4
 CELL_SIZE = WIDTH // GRID_SIZE
 LINE_WIDTH = 2
@@ -19,6 +19,7 @@ BLACK = (0, 0, 0)
 BLUE = (0, 0, 255)
 GRAY = (200, 200, 200)
 GREEN = (0, 200, 0)
+RED = (200, 0, 0)  # Added for "Can't solve" state
 
 # Set up display
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -98,13 +99,11 @@ def solve_sudoku(mat, row, col, history: SudokuHistory, loop=0):
 def draw_grid(mat):
     screen.fill(WHITE)
     
-    # Draw grid lines
     for i in range(GRID_SIZE + 1):
         thickness = LINE_WIDTH * 2 if i % 2 == 0 else LINE_WIDTH
         pygame.draw.line(screen, BLACK, (i * CELL_SIZE, 0), (i * CELL_SIZE, WIDTH), thickness)
         pygame.draw.line(screen, BLACK, (0, i * CELL_SIZE), (WIDTH, i * CELL_SIZE), thickness)
 
-    # Draw numbers
     for i in range(GRID_SIZE):
         for j in range(GRID_SIZE):
             if mat[i][j] != 0:
@@ -113,16 +112,23 @@ def draw_grid(mat):
                                                 i * CELL_SIZE + CELL_SIZE//2))
                 screen.blit(text, text_rect)
 
-def draw_button(solved):
+def draw_button(state):
     button_rect = pygame.Rect(100, HEIGHT - BUTTON_HEIGHT - 10, 200, BUTTON_HEIGHT)
-    pygame.draw.rect(screen, GREEN if not solved else GRAY, button_rect)
-    text = button_font.render("Solve" if not solved else "Solved", True, WHITE)
+    if state == "unsolved":
+        pygame.draw.rect(screen, GREEN, button_rect)
+        text = button_font.render("Solve", True, WHITE)
+    elif state == "solved":
+        pygame.draw.rect(screen, GRAY, button_rect)
+        text = button_font.render("Solved", True, WHITE)
+    else:  # can't solve
+        pygame.draw.rect(screen, RED, button_rect)
+        text = button_font.render("Can't solve", True, WHITE)
+    
     text_rect = text.get_rect(center=button_rect.center)
     screen.blit(text, text_rect)
     return button_rect
 
 def main():
-    # Initial Sudoku puzzle
     original_mat = np.array([
         [1, 1, 0, 0],
         [0, 2, 0, 0],
@@ -132,23 +138,24 @@ def main():
     
     current_mat = original_mat.copy()
     history = SudokuHistory()
-    solved = False
+    state = "unsolved"  # Can be "unsolved", "solved", or "cant_solve"
     
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN and not solved:
+            elif event.type == pygame.MOUSEBUTTONDOWN and state == "unsolved":
                 if button_rect.collidepoint(event.pos):
                     solvable, current_mat, history = solve_sudoku(original_mat.copy(), 0, 0, history)
                     if solvable:
-                        solved = True
+                        state = "solved"
                         history.to_csv("sudoku.csv")
+                    else:
+                        state = "cant_solve"
         
-        # Draw the current state
         draw_grid(current_mat)
-        button_rect = draw_button(solved)
+        button_rect = draw_button(state)
         pygame.display.flip()
     
     pygame.quit()
