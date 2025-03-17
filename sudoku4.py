@@ -92,7 +92,7 @@ def solve_sudoku(mat, row, col, history: SudokuHistory, loop=0):
 			history_col = 0
 		else:
 			history_row = row 
-			history_col = col
+			history_col = col + 1
 		history.add_record((row, col), False, None, None, None, 1, (history_row, history_col))
 		
 		return solve_sudoku(mat, row, col + 1, history, loop)
@@ -114,7 +114,16 @@ def solve_sudoku(mat, row, col, history: SudokuHistory, loop=0):
 
 			# Backtracking
 			mat[row][col] = 0
-			history.add_record((row, col), True, loop, num, True, -1, (row, col))
+
+			# Nếu vị trí cột = 0 thì lên hàng bên trên
+			if col - 1 == -1:
+				history_row -= 1
+				history_col = 3
+			else:
+				history_row = row
+				history_col = col - 1
+
+			history.add_record((row, col), True, loop, num, True, -1, (history_row, history_col))
 
 	# Nếu giá trị không hợp lệ thì trở về giá trị trước đó
 	prev_col = col - 1 if col > 0 else 3
