@@ -16,6 +16,9 @@ class Color(Enum):
     RED = (255, 0, 0)
     GREEN = (0, 255, 0) 
 
+    SCREEN = (230, 240, 255)
+    GRID_LINE = (0, 50, 100)
+
     INACTIVE = (120, 120, 120)
     ACTIVE = (70, 180, 70)
     ERROR = (180, 70, 70)
@@ -117,7 +120,7 @@ class SudokuGame:
             selected_cell: Vị trí ô hiện tại đang chọn (x, y)
             lives: Số mạng còn lại của người chơi
         """
-        screen.fill((230, 240, 255))
+        screen.fill(Color.SCREEN.value)
 
         # Nền xám cho gợi ý 
         for i in range(9):
@@ -128,8 +131,8 @@ class SudokuGame:
         # Vẽ các đường phân chia
         for i in range(10):
             thickness = 4 if i % 3 == 0 else 1 # Đường chia cắt các khối dày hơn
-            pygame.draw.line(screen, (0, 50, 100), (i * cell_size, 0), (i * cell_size, 9 * cell_size), thickness)
-            pygame.draw.line(screen, (0, 50, 100), (0, i * cell_size), (9 * cell_size, i * cell_size), thickness)
+            pygame.draw.line(screen, Color.GRID_LINE.value, (i * cell_size, 0), (i * cell_size, 9 * cell_size), thickness)
+            pygame.draw.line(screen, Color.GRID_LINE.value, (0, i * cell_size), (9 * cell_size, i * cell_size), thickness)
         
         # Vẽ đường viền cho ô đang được chọn (trừ ô gợi ý)
         if selected_cell and not locked[selected_cell[0]][selected_cell[1]]:
@@ -161,7 +164,9 @@ class SudokuGame:
             text: Nội dung nút bấm
             x, y: Toạ độ của nút bấm
             w, h: Chiều dài, chiều rộng của nút
-
+            inactive_color: Màu sắc nếu không được rê chuột vào nút
+            active_color: Màu sắc nếu được rê chuột vào nút
+            text_color: Màu chữ
         """
         mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()
@@ -176,6 +181,9 @@ class SudokuGame:
 
 
     def run(self):
+        """
+        Chạy game
+        """
         pygame.display.set_caption("Sudoku Game")
 
         mat = self.mat
@@ -188,21 +196,32 @@ class SudokuGame:
 
             # Lấy các event
             for event in pygame.event.get():
+
+                # Thoát game bằng nút X
                 if event.type == pygame.QUIT:
                     running = False
+                    
                 if not self.failed and not self.won:
+
+                    # Lấy vị trí chuột nếu bấm vào ô
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         x, y = pygame.mouse.get_pos()
                         if y < self.cell_size * 9:
                             i, j = y // self.cell_size, x // self.cell_size
                             if not locked[i][j]:
-                                self.selected_cell = (i, j)
+                                self.selected_cell = (i, j) # Lấy chỉ số của ô trong ma trận
                         else:
                             self.selected_cell = None
+
+                    # Nhận giá trị từ bàn phím hoặc xoá
                     elif event.type == pygame.KEYDOWN and self.selected_cell:
                         i, j = self.selected_cell
+
+                        # Xoá giá trị bằng delete hoặc backspace
                         if event.key == pygame.K_BACKSPACE or event.key == pygame.K_DELETE:
                             mat[i][j] = 0
+
+                        # Nhập số vào từ bàn phím
                         elif event.unicode.isdigit() and int(event.unicode) in range(1, 10):
                             num = int(event.unicode)
                             if self.solver.is_safe(mat, i, j, num):
@@ -210,11 +229,13 @@ class SudokuGame:
                             else:
                                 mat[i][j] = num
                                 self.lives -= 1
-                                if self.lives <= 0:
+                                if self.lives <= 0: # Đánh dấu là thua nếu hết mạng
                                     self.failed = True
 
+            # Vẽ bảng
             self.draw_board(self.screen, mat, locked, self.cell_size, self.selected_cell, self.lives)
 
+            # Nếu hết mạng hiện thông báo thua
             if self.failed and not self.solved:
                 font = pygame.font.Font(None, 100)
                 game_over_text = font.render("Game Over", True, Color.RED.value)
@@ -222,6 +243,7 @@ class SudokuGame:
                 self.screen.blit(game_over_text, text_rect)
 
             if not self.solved:
+
                 # Vẽ nút "Solve", nếu bấm vào thì giải luôn
                 if self.draw_button(
                     self.screen, "Solve", 
@@ -242,13 +264,13 @@ class SudokuGame:
                     
                     history.to_csv("history.csv")
 
-
+            # Nếu giải rồi thì huỷ nút Solve
             else:
                 self.draw_button(self.screen, "Solved!", self.button_x_start, self.button_y, 
                             self.button_width, self.button_height,
                             Color.ACTIVE.value, Color.ACTIVE.value, Color.WHITE.value)
 
-            
+            # Nút làm mới bảng
             if self.draw_button(
                 self.screen, "New", 
                 self.button_x_start + self.button_width + self.button_spacing, 
@@ -260,6 +282,7 @@ class SudokuGame:
                 locked = [[True if mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
                 self.solved = False
 
+            # Nút thoát game "Quit"
             if self.draw_button(
                 self.screen, 
                 "Quit", 
@@ -270,6 +293,8 @@ class SudokuGame:
             ):
                 running = False
 
+            
+            # Hiện thông báo chiến thắng
             if not self.won and not self.failed and self.is_board_complete_and_valid(mat, locked):
                 self.won = True
 

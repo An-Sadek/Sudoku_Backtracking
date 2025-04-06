@@ -20,7 +20,7 @@ class SudokuSolver:
         if num in mat[:, col]:
             return False
         
-        # Kiểm tra
+        # Kiểm tra khối
         start_row, start_col = 3 * (row // 3), 3 * (col // 3)
         if num in mat[start_row:start_row + 3, start_col:start_col + 3]:
             return False
