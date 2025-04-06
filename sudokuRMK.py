@@ -4,9 +4,11 @@ import random
 import os
 import time
 import pygame 
+from enum import Enum
 
 
 class SudokuHistory:
+
     def __init__(self):
         
         self.location = []
@@ -46,6 +48,7 @@ class SudokuHistory:
         })
         df.to_csv(path, index=False)
         return df
+    
 
 class SudokuSolver:
 
@@ -136,11 +139,27 @@ class SudokuSolver:
         else:
             return False, "Grid is unsolvable or timed out"
 
+
+class Color(Enum):
+
+    BLACK = (0, 0, 0)
+    GRAY = (200, 200, 200)
+    WHITE = (255, 255, 255)
+
+    GREEN = (0, 255, 0) 
+
+    INACTIVE = (120, 120, 120)
+    ACTIVE = (70, 180, 70)
+    ERROR = (180, 70, 70)
+    WIN = (50, 150, 50)
+    SELECTED = (100, 150, 255)
+
+
 class SudokuGame:
 
-    def __init__(self, path):
+    def __init__(self, path, cell_size = 60, button_height = 50):
         """
-        Đọc đường dẫn của các câu đố sudoku có sãnư
+        Đọc đường dẫn của các câu đố sudoku có sẵn
         Khởi tạo câu đó
         Khởi tạo game
         """
@@ -152,55 +171,99 @@ class SudokuGame:
         self.reset()
         self.solver = SudokuSolver()
 
+        # Khởi tạo game
         pygame.init()
 
+        self.cell_size = cell_size
+        self.button_height = button_height
+        screen_width = cell_size * 9
+        screen_height = cell_size * 9 + button_height * 2 + 20
+        self.screen = pygame.display.set_mode((screen_width, screen_height))
+
     def reset(self):
+        """
+        Reset lại trạng thái bằng cách lấy một bảng sudoku ngẫu nhiên
+        """
         txt_line = random.choice(self.grids).strip()
         parts = txt_line.split()
         self.grid = self.load_grid(parts[1])
 
     def load_grid(self, txt_grid: str):
-        # Convert the 81-character string to a 9x9 numpy array
+        """
+        Các bảng sudoku được viết theo kiểu chuỗi, 
+        trong đó ma trận là dữ liệu ở giữa là chuỗi gồm 81 số
+        """
         mat = np.array([int(num) for num in txt_grid]).reshape(9, 9)
         return mat
     
     def is_board_complete_and_valid(self, mat, locked):
+        """
+        Kiểm tra sudoku đã được giải hay chưa
+        """
         for i in range(9):
             for j in range(9):
                 if mat[i][j] == 0 or (not locked[i][j] and not self.solver.is_safe(mat, i, j, mat[i][j])):
                     return False
         return True
     
-    def draw_board(self, screen, mat, locked, cell_size, selected_cell=None, lives=3):
+    def draw_board(self, 
+        screen, 
+        mat, 
+        locked, 
+        cell_size, 
+        selected_cell=None, 
+        lives=3
+    ):
+        """
+        Vẽ các 
+            screen: Tạo màn hình từ pygame với kích thước width x heigh
+            mat: Ma trận sudoku được lấy từ self.grid
+            locked: Ma trận boolean các số đã được gợi ý
+            cell_size: Kích thước mỗi ô
+            selected_cell: Vị trí ô hiện tại đang chọn (x, y)
+            lives: Số mạng còn lại của người chơi
+        """
         screen.fill((230, 240, 255))
+
+        # Nền xám cho gợi ý 
         for i in range(9):
             for j in range(9):
-                color = (200, 200, 200) if locked[i][j] else (255, 255, 255)
+                color = Color.GRAY.value if locked[i][j] else Color.WHITE.value
                 pygame.draw.rect(screen, color, (j * cell_size, i * cell_size, cell_size, cell_size))
+
+        # Vẽ các đường phân chia
         for i in range(10):
-            thickness = 4 if i % 3 == 0 else 1
+            thickness = 4 if i % 3 == 0 else 1 # Đường chia cắt các khối dày hơn
             pygame.draw.line(screen, (0, 50, 100), (i * cell_size, 0), (i * cell_size, 9 * cell_size), thickness)
             pygame.draw.line(screen, (0, 50, 100), (0, i * cell_size), (9 * cell_size, i * cell_size), thickness)
+        
+        # Vẽ đường viền cho ô đang được chọn (trừ ô gợi ý)
         if selected_cell and not locked[selected_cell[0]][selected_cell[1]]:
             i, j = selected_cell
-            pygame.draw.rect(screen, (100, 150, 255), (j * cell_size, i * cell_size, cell_size, cell_size), 4)
+            pygame.draw.rect(screen, Color.SELECTED.value, (j * cell_size, i * cell_size, cell_size, cell_size), 4)
+        
         font = pygame.font.Font(None, 40)
+
         for i in range(9):
             for j in range(9):
                 if mat[i][j] != 0:
                     num = mat[i][j]
                     if locked[i][j]:
-                        color = (0, 0, 0)  # Black for initial numbers
+                        color = Color.BLACK.value  # Các ô không phải gợi ý có chữ đen
+                    
                     else:
-                        color = (0, 255, 0) if self.solver.is_safe(mat, i, j, num) else (255, 0, 0)  # Green for correct, red for incorrect
+                        color = Color.GREEN.value
                     text = font.render(str(num), True, color)
                     text_rect = text.get_rect(center=(j * cell_size + cell_size / 2, i * cell_size + cell_size / 2))
                     screen.blit(text, text_rect)
         font = pygame.font.Font(None, 36)
-        lives_text = font.render(f"Lives: {lives}", True, (0, 0, 0))
+        lives_text = font.render(f"Lives: {lives}", True, Color.BLACK.value)
         screen.blit(lives_text, (10, cell_size * 9 + 5))
 
-    def draw_button(self, screen, text, x, y, w, h, inactive_color, active_color, text_color=(255, 255, 255)):
+    def draw_button(self, screen, text, x, y, w, h, inactive_color, active_color, text_color=Color.WHITE.value):
+        """
+        Thêm các nút bấm vào
+        """
         mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()
         color = active_color if (x + w > mouse[0] > x and y + h > mouse[1] > y) else inactive_color
@@ -226,13 +289,7 @@ class SudokuGame:
         mat = self.grid.copy()
         locked = [[True if mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
 
-        # Colors
-        INACTIVE_COLOR = (120, 120, 120)
-        ACTIVE_COLOR = (70, 180, 70)
-        ERROR_COLOR = (180, 70, 70)
-        WIN_COLOR = (50, 150, 50)
-
-        # Game state
+        # Các trạng thái của game
         running = True
         solved = False
         failed = False
@@ -279,13 +336,13 @@ class SudokuGame:
 
             if failed and not solved:
                 font = pygame.font.Font(None, 100)
-                game_over_text = font.render("Game Over", True, ERROR_COLOR)
+                game_over_text = font.render("Game Over", True, Color.INACTIVE.value)
                 text_rect = game_over_text.get_rect(center=(screen_width / 2, screen_height / 3))
                 screen.blit(game_over_text, text_rect)
 
             if not solved:
                 if self.draw_button(screen, "Solve", button_x_start, button_y, button_width, button_height,
-                                   INACTIVE_COLOR, ACTIVE_COLOR):
+                                   Color.INACTIVE.value, Color.INACTIVE.value):
                     solvable, result = self.solver.is_solvable(mat)
                     if solvable:
                         mat = result
@@ -295,10 +352,10 @@ class SudokuGame:
                         history.to_csv("sudoku_history.csv")
             else:
                 self.draw_button(screen, "Solved!", button_x_start, button_y, button_width, button_height,
-                                ACTIVE_COLOR, ACTIVE_COLOR, (255, 255, 255))
+                                Color.ACTIVE.value, Color.ACTIVE.value, (255, 255, 255))
 
             if self.draw_button(screen, "New", button_x_start + button_width + button_spacing, button_y,
-                               button_width, button_height, INACTIVE_COLOR, ACTIVE_COLOR):
+                               button_width, button_height, Color.INACTIVE.value, Color.ACTIVE.value):
                 self.reset()
                 mat = self.grid.copy()
                 locked = [[True if mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
@@ -310,7 +367,7 @@ class SudokuGame:
                 selected_cell = None
 
             if self.draw_button(screen, "Quit", button_x_start + (button_width + button_spacing) * 2, button_y,
-                               button_width, button_height, INACTIVE_COLOR, ERROR_COLOR):
+                               button_width, button_height, Color.INACTIVE.value, Color.ERROR.value):
                 running = False
 
             if not won and not failed and self.is_board_complete_and_valid(mat, locked):
@@ -318,13 +375,14 @@ class SudokuGame:
 
             if won:
                 font = pygame.font.Font(None, 100)
-                win_text = font.render("You Win!", True, WIN_COLOR)
+                win_text = font.render("You Win!", True, Color.WIN.value)
                 text_rect = win_text.get_rect(center=(screen_width / 2, screen_height / 3))
                 screen.blit(win_text, text_rect)
 
             pygame.display.flip()
 
         pygame.quit()
+
 
 if __name__ == "__main__":
     game = SudokuGame("easy.txt")
