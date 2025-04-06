@@ -176,9 +176,6 @@ class SudokuGame:
 
 
     def run(self):
-        """
-        Hàm chạy game
-        """
         pygame.display.set_caption("Sudoku Game")
 
         mat = self.mat
@@ -188,6 +185,8 @@ class SudokuGame:
         running = True
 
         while running:
+
+            # Lấy các event
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -223,7 +222,6 @@ class SudokuGame:
                 self.screen.blit(game_over_text, text_rect)
 
             if not self.solved:
-
                 # Vẽ nút "Solve", nếu bấm vào thì giải luôn
                 if self.draw_button(
                     self.screen, "Solve", 
@@ -231,17 +229,26 @@ class SudokuGame:
                     self.button_width, self.button_height,
                     Color.INACTIVE.value, Color.ACTIVE.value
                 ):
-                    solvable, result = self.solver.is_solvable(mat)
+                    # Reset lại lịch sử
+                    self.history = SudokuHistory() 
+
+                    # Phải copy ra để không thay đổi ma trận
+                    solvable, result, history = self.solver.solve_sudoku(mat.copy(), 0, 0, self.history)
                     if solvable:
                         mat = result
                         self.solved = True
                         if self.failed:
                             self.failed = False
-                        self.history.to_csv("sudoku_history.csv")
-            else:
-                self.draw_button(self.screen, "Solved!", self.button_x_start, self.button_y, self.button_width, self.button_height,
-                                Color.ACTIVE.value, Color.ACTIVE.value, Color.WHITE.value)
+                    
+                    history.to_csv("history.csv")
 
+
+            else:
+                self.draw_button(self.screen, "Solved!", self.button_x_start, self.button_y, 
+                            self.button_width, self.button_height,
+                            Color.ACTIVE.value, Color.ACTIVE.value, Color.WHITE.value)
+
+            
             if self.draw_button(
                 self.screen, "New", 
                 self.button_x_start + self.button_width + self.button_spacing, 

@@ -1,4 +1,5 @@
 import time
+import numpy as np
 from history import SudokuHistory
 
 
@@ -90,3 +91,23 @@ class SudokuSolver:
             return True, solved_mat
         else:
             return False, "Grid is unsolvable or timed out"
+        
+    
+if __name__ == "__main__":
+    mat = np.array([
+        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9]
+    ], dtype=int)
+
+    history = SudokuHistory()
+    solver = SudokuSolver()
+    solvable, result, history = solver.solve_sudoku(mat, 0, 0, history)
+    history.to_csv("history.csv")
+

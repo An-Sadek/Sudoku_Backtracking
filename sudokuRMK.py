@@ -1,10 +1,4 @@
-import numpy as np
 import pandas as pd
-import random
-import os
-import time
-import pygame 
-from enum import Enum
 
 
 class SudokuHistory:
@@ -49,6 +43,8 @@ class SudokuHistory:
         df.to_csv(path, index=False)
         return df
     
+import time
+
 
 class SudokuSolver:
 
@@ -138,6 +134,13 @@ class SudokuSolver:
             return True, solved_mat
         else:
             return False, "Grid is unsolvable or timed out"
+        
+import os
+import pygame
+import random
+
+import numpy as np
+from enum import Enum
 
 
 class Color(Enum):
@@ -146,6 +149,7 @@ class Color(Enum):
     GRAY = (200, 200, 200)
     WHITE = (255, 255, 255)
 
+    RED = (255, 0, 0)
     GREEN = (0, 255, 0) 
 
     INACTIVE = (120, 120, 120)
@@ -167,7 +171,17 @@ class SudokuGame:
         with open(path, "r") as file:
             self.grids = file.readlines()
 
+        # Khởi tạo các biến
         self.grid = None
+        self.locked = None
+        self.solved = None
+        self.failed = None
+        self.won = None
+        self.lives = None
+        self.history = None
+        self.selected_cell = None
+
+        # Reset về trạng thái mặc định
         self.reset()
         self.solver = SudokuSolver()
 
@@ -176,9 +190,17 @@ class SudokuGame:
 
         self.cell_size = cell_size
         self.button_height = button_height
-        screen_width = cell_size * 9
-        screen_height = cell_size * 9 + button_height * 2 + 20
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
+        self.screen_width = cell_size * 9
+        self.screen_height = cell_size * 9 + button_height * 2 + 20
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+
+        # Khởi tạo các nút bấm
+        self.button_width = 120
+        self.button_height = 40
+        self.button_spacing = 20
+        self.total_buttons_width = self.button_width * 3 + self.button_spacing * 2
+        self.button_x_start = (self.screen_width - self.total_buttons_width) // 2
+        self.button_y = self.cell_size * 9 + 30
 
     def reset(self):
         """
@@ -186,7 +208,15 @@ class SudokuGame:
         """
         txt_line = random.choice(self.grids).strip()
         parts = txt_line.split()
-        self.grid = self.load_grid(parts[1])
+        self.mat = self.load_grid(parts[1])
+
+        self.locked = [[True if self.mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
+        self.solved = False
+        self.failed = False
+        self.won = False
+        self.lives = 3
+        self.history = SudokuHistory()
+        self.selected_cell = None
 
     def load_grid(self, txt_grid: str):
         """
@@ -262,7 +292,12 @@ class SudokuGame:
 
     def draw_button(self, screen, text, x, y, w, h, inactive_color, active_color, text_color=Color.WHITE.value):
         """
-        Thêm các nút bấm vào
+        Thêm các nút bấm vào, trả về giá trị True nếu bấm vào
+            screen
+            text: Nội dung nút bấm
+            x, y: Toạ độ của nút bấm
+            w, h: Chiều dài, chiều rộng của nút
+
         """
         mouse = pygame.mouse.get_pos()
         click = pygame.mouse.get_pressed()
@@ -272,47 +307,32 @@ class SudokuGame:
         text_surf = font.render(text, True, text_color)
         text_rect = text_surf.get_rect(center=(x + w / 2, y + h / 2))
         screen.blit(text_surf, text_rect)
+
         return click[0] == 1 and x + w > mouse[0] > x and y + h > mouse[1] > y
 
 
     def run(self):
-        """
-        Hàm chạy game
-        """
-        cell_size = 60
-        button_height = 50
-        screen_width = cell_size * 9
-        screen_height = cell_size * 9 + button_height * 2 + 20
-        screen = pygame.display.set_mode((screen_width, screen_height))
         pygame.display.set_caption("Sudoku Game")
 
-        mat = self.grid.copy()
+        mat = self.mat
         locked = [[True if mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
 
-        # Các trạng thái của game
         running = True
-        solved = False
-        failed = False
-        won = False
-        selected_cell = None
-        lives = 3
-        history = SudokuHistory()
-
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                if not failed and not won:
+                if not self.failed and not self.won:
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         x, y = pygame.mouse.get_pos()
-                        if y < cell_size * 9:
-                            i, j = y // cell_size, x // cell_size
+                        if y < self.cell_size * 9:
+                            i, j = y // self.cell_size, x // self.cell_size
                             if not locked[i][j]:
-                                selected_cell = (i, j)
+                                self.selected_cell = (i, j)
                         else:
-                            selected_cell = None
-                    elif event.type == pygame.KEYDOWN and selected_cell:
-                        i, j = selected_cell
+                            self.selected_cell = None
+                    elif event.type == pygame.KEYDOWN and self.selected_cell:
+                        i, j = self.selected_cell
                         if event.key == pygame.K_BACKSPACE or event.key == pygame.K_DELETE:
                             mat[i][j] = 0
                         elif event.unicode.isdigit() and int(event.unicode) in range(1, 10):
@@ -321,63 +341,75 @@ class SudokuGame:
                                 mat[i][j] = num
                             else:
                                 mat[i][j] = num
-                                lives -= 1
-                                if lives <= 0:
-                                    failed = True
+                                self.lives -= 1
+                                if self.lives <= 0:
+                                    self.failed = True
 
-            self.draw_board(screen, mat, locked, cell_size, selected_cell, lives)
+            self.draw_board(self.screen, mat, locked, self.cell_size, self.selected_cell, self.lives)
 
-            button_width = 120
-            button_height = 40
-            button_spacing = 20
-            total_buttons_width = button_width * 3 + button_spacing * 2
-            button_x_start = (screen_width - total_buttons_width) // 2
-            button_y = cell_size * 9 + 30
-
-            if failed and not solved:
+            if self.failed and not self.solved:
                 font = pygame.font.Font(None, 100)
-                game_over_text = font.render("Game Over", True, Color.INACTIVE.value)
-                text_rect = game_over_text.get_rect(center=(screen_width / 2, screen_height / 3))
-                screen.blit(game_over_text, text_rect)
+                game_over_text = font.render("Game Over", True, Color.RED.value)
+                text_rect = game_over_text.get_rect(center=(self.screen_width / 2, self.screen_height / 3))
+                self.screen.blit(game_over_text, text_rect)
 
-            if not solved:
-                if self.draw_button(screen, "Solve", button_x_start, button_y, button_width, button_height,
-                                   Color.INACTIVE.value, Color.INACTIVE.value):
-                    solvable, result = self.solver.is_solvable(mat)
+            if not self.solved:
+                # Vẽ nút "Solve", nếu bấm vào thì giải luôn
+                if self.draw_button(
+                    self.screen, "Solve", 
+                    self.button_x_start, self.button_y, 
+                    self.button_width, self.button_height,
+                    Color.INACTIVE.value, Color.ACTIVE.value
+                ):
+                    # Modified solving process to include history
+                    self.history = SudokuHistory()  # Reset history before solving
+                    solvable, result, history = self.solver.solve_sudoku(mat.copy(), 0, 0, self.history)
                     if solvable:
                         mat = result
-                        solved = True
-                        if failed:
-                            failed = False
-                        history.to_csv("sudoku_history.csv")
+                        self.solved = True
+                        if self.failed:
+                            self.failed = False
+                        # Export to CSV immediately after solving
+                        try:
+                            self.history.to_csv("sudoku_history.csv")
+                            print("History exported to sudoku_history.csv")
+                        except Exception as e:
+                            print(f"Failed to export CSV: {e}")
             else:
-                self.draw_button(screen, "Solved!", button_x_start, button_y, button_width, button_height,
-                                Color.ACTIVE.value, Color.ACTIVE.value, (255, 255, 255))
+                self.draw_button(self.screen, "Solved!", self.button_x_start, self.button_y, 
+                            self.button_width, self.button_height,
+                            Color.ACTIVE.value, Color.ACTIVE.value, Color.WHITE.value)
 
-            if self.draw_button(screen, "New", button_x_start + button_width + button_spacing, button_y,
-                               button_width, button_height, Color.INACTIVE.value, Color.ACTIVE.value):
+            # Rest of your code remains the same...
+            if self.draw_button(
+                self.screen, "New", 
+                self.button_x_start + self.button_width + self.button_spacing, 
+                self.button_y, self.button_width, self.button_height, 
+                Color.INACTIVE.value, Color.ACTIVE.value
+            ):
                 self.reset()
-                mat = self.grid.copy()
+                mat = self.mat
                 locked = [[True if mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
-                solved = False
-                failed = False
-                won = False
-                lives = 3
-                history = SudokuHistory()
-                selected_cell = None
+                self.solved = False
 
-            if self.draw_button(screen, "Quit", button_x_start + (button_width + button_spacing) * 2, button_y,
-                               button_width, button_height, Color.INACTIVE.value, Color.ERROR.value):
+            if self.draw_button(
+                self.screen, 
+                "Quit", 
+                self.button_x_start + (self.button_width + self.button_spacing) * 2, 
+                self.button_y,
+                self.button_width, self.button_height, 
+                Color.INACTIVE.value, Color.ERROR.value
+            ):
                 running = False
 
-            if not won and not failed and self.is_board_complete_and_valid(mat, locked):
-                won = True
+            if not self.won and not self.failed and self.is_board_complete_and_valid(mat, locked):
+                self.won = True
 
-            if won:
+            if self.won:
                 font = pygame.font.Font(None, 100)
                 win_text = font.render("You Win!", True, Color.WIN.value)
-                text_rect = win_text.get_rect(center=(screen_width / 2, screen_height / 3))
-                screen.blit(win_text, text_rect)
+                text_rect = win_text.get_rect(center=(self.screen_width / 2, self.screen_height / 3))
+                self.screen.blit(win_text, text_rect)
 
             pygame.display.flip()
 
