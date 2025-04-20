@@ -46,7 +46,6 @@ class SudokuGame:
             self.grids = file.readlines()
 
         # Khởi tạo các biến
-        self.grid = None
         self.locked = None
         self.solved = None
         self.failed = None
@@ -55,9 +54,21 @@ class SudokuGame:
         self.history = None
         self.selected_cell = None
 
-        # Reset về trạng thái mặc định
+        # Khởi tạo trạng thái mặc định trừ mat
         self.reset()
         self.solver = SudokuSolver()
+        # mat khởi tạo sẽ là ma trận sử dụng trong bài báo cáo
+        self.mat = np.array([
+            [5, 3, 0, 0, 7, 0, 0, 0, 0],
+            [6, 0, 0, 1, 9, 5, 0, 0, 0],
+            [0, 9, 8, 0, 0, 0, 0, 6, 0],
+            [8, 0, 0, 0, 6, 0, 0, 0, 3],
+            [4, 0, 0, 8, 0, 3, 0, 0, 1],
+            [7, 0, 0, 0, 2, 0, 0, 0, 6],
+            [0, 6, 0, 0, 0, 0, 2, 8, 0],
+            [0, 0, 0, 4, 1, 9, 0, 0, 5],
+            [0, 0, 0, 0, 8, 0, 0, 7, 9]
+        ], dtype=int)
 
         # Khởi tạo game
         pygame.init()
@@ -122,7 +133,7 @@ class SudokuGame:
             lives: int=3
     ) -> None:
         """
-        Vẽ các 
+        Vẽ bảng, bao gồm tô màu các ô gợi ý, vẽ đường phân chia
             screen: Tạo màn hình từ pygame với kích thước width x heigh
             mat: Ma trận sudoku được lấy từ self.grid
             locked: Ma trận boolean các số đã được gợi ý
@@ -174,9 +185,9 @@ class SudokuGame:
             w: int, h: int, 
             inactive_color, active_color, 
             text_color=Color.WHITE.value
-    ) -> None:
+    ) -> bool:
         """
-        Thêm các nút bấm vào, trả về giá trị True nếu bấm vào
+        Vẽ các nút bấm vào, trả về giá trị True nếu bấm vào
             screen
             text: Nội dung nút bấm
             x, y: Toạ độ của nút bấm
@@ -271,14 +282,15 @@ class SudokuGame:
                     self.history = SudokuHistory() 
 
                     # Phải copy ra để không thay đổi ma trận
-                    solvable, result, history = self.solver.solve_sudoku(mat.copy(), 0, 0, self.history)
+                    result = mat.copy()
+                    solvable = self.solver.solve_sudoku(result, 0, 0, self.history)
                     if solvable:
                         mat = result
                         self.solved = True
                         if self.failed:
                             self.failed = False
                     
-                    history.to_csv("history.csv")
+                    self.history.to_csv("history.csv")
 
             # Nếu giải rồi thì huỷ nút Solve
             else:

@@ -40,7 +40,7 @@ class SudokuSolver:
             col: int, 
             history: SudokuHistory, 
             timeout: int=20
-    ) -> Tuple[bool, np.array, SudokuHistory]:
+    ) -> bool:
         """
         Giải sudoku, trả về kết quả fail nếu thời gian vượt quá quy định
         Hoặc không giải được do cấu hình
@@ -49,7 +49,7 @@ class SudokuSolver:
 
         # Nếu đạt tới hàng thứ 10 (index 9) thì hoàn thành
         if row == 9:
-            return True, mat, history
+            return True
         
         # Nếu vượt cột thì xuống hàng tiếp
         if col == 9:
@@ -65,7 +65,7 @@ class SudokuSolver:
             
             # Huỷ chương trình nếu giải quá lâu
             if time.time() - start_time > timeout:
-                return False, mat, history  
+                return False
 
             # Kiểm tra giá trị hợp lệ
             valid = self.is_safe(mat, row, col, num)
@@ -75,11 +75,11 @@ class SudokuSolver:
             if valid:
                 mat[row][col] = num
                 history.add_record((row, col), True, num, True, 1, (row, col + 1))
-                solvable, mat, history = self.solve_sudoku(mat, row, col + 1, history, timeout)
+                solvable = self.solve_sudoku(mat, row, col + 1, history, timeout)
 
                 # Nếu đã giải xong thì trả về True
                 if solvable:
-                    return True, mat, history
+                    return True
                 
                 # Nếu chưa giải xong thì backtracking
                 mat[row][col] = 0
@@ -92,7 +92,7 @@ class SudokuSolver:
             history.add_record((row, col), True, None, False, -1, (prev_row, prev_col))
 
         # Trả về False
-        return False, mat, history
+        return False
         
     
 if __name__ == "__main__":
@@ -110,6 +110,7 @@ if __name__ == "__main__":
 
     history = SudokuHistory()
     solver = SudokuSolver()
-    solvable, result, history = solver.solve_sudoku(mat, 0, 0, history)
+    solvable = solver.solve_sudoku(mat, 0, 0, history)
+    print(mat)
     history.to_csv("history.csv")
 
