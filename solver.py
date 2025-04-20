@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import time
 import numpy as np
 from history import SudokuHistory
@@ -8,7 +10,12 @@ class SudokuSolver:
     def __init__(self):
         pass 
 
-    def is_safe(self, mat, row, col, num):
+    def is_safe(self, 
+            mat: np.array, 
+            row: int, 
+            col: int, 
+            num: int
+    ) -> bool:
         """
         Kiểm tra giá trị đầu vào có trùng với giá trị units không
         """
@@ -27,7 +34,13 @@ class SudokuSolver:
         
         return True
 
-    def solve_sudoku(self, mat, row, col, history: SudokuHistory, timeout=20):
+    def solve_sudoku(self, 
+            mat: np.array, 
+            row: int, 
+            col: int, 
+            history: SudokuHistory, 
+            timeout: int=20
+    ) -> Tuple[bool, np.array, SudokuHistory]:
         """
         Giải sudoku, trả về kết quả fail nếu thời gian vượt quá quy định
         Hoặc không giải được do cấu hình
@@ -78,19 +91,8 @@ class SudokuSolver:
         if prev_row >= 0:
             history.add_record((row, col), True, None, False, -1, (prev_row, prev_col))
 
-        # Backtracking tiếp
+        # Trả về False
         return False, mat, history
-
-    def is_solvable(self, mat, timeout=20):
-        """
-        Kiểm tra xem ma trận đầu vào có giải được không
-        """
-        history = SudokuHistory()
-        solvable, solved_mat, history = self.solve_sudoku(mat.copy(), 0, 0, history, timeout)
-        if solvable:
-            return True, solved_mat
-        else:
-            return False, "Grid is unsolvable or timed out"
         
     
 if __name__ == "__main__":

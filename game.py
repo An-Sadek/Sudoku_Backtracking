@@ -28,13 +28,20 @@ class Color(Enum):
 
 class SudokuGame:
 
-    def __init__(self, path, cell_size = 60, button_height = 50):
+    def __init__(self, 
+            path: str, 
+            cell_size: int = 60, 
+            button_height: int = 50
+    ):
         """
         Đọc đường dẫn của các câu đố sudoku có sẵn
         Khởi tạo câu đó
         Khởi tạo game
         """
+        # Kiểm tra file có tồn tại hay không
         assert os.path.exists(path)
+
+        # Đọc toàn bộ câu đố
         with open(path, "r") as file:
             self.grids = file.readlines()
 
@@ -69,7 +76,7 @@ class SudokuGame:
         self.button_x_start = (self.screen_width - self.total_buttons_width) // 2
         self.button_y = self.cell_size * 9 + 30
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset lại trạng thái bằng cách lấy một bảng sudoku ngẫu nhiên
         """
@@ -85,7 +92,7 @@ class SudokuGame:
         self.history = SudokuHistory()
         self.selected_cell = None
 
-    def load_grid(self, txt_grid: str):
+    def load_grid(self, txt_grid: str) -> np.array:
         """
         Các bảng sudoku được viết theo kiểu chuỗi, 
         trong đó ma trận là dữ liệu ở giữa là chuỗi gồm 81 số
@@ -93,7 +100,10 @@ class SudokuGame:
         mat = np.array([int(num) for num in txt_grid]).reshape(9, 9)
         return mat
     
-    def is_board_complete_and_valid(self, mat, locked):
+    def is_board_complete_and_valid(self, 
+            mat: np.array, 
+            locked: list[list[bool]]
+    ) -> bool:
         """
         Kiểm tra sudoku đã được giải hay chưa
         """
@@ -104,13 +114,13 @@ class SudokuGame:
         return True
     
     def draw_board(self, 
-        screen, 
-        mat, 
-        locked, 
-        cell_size, 
-        selected_cell=None, 
-        lives=3
-    ):
+            screen: pygame.surface.Surface, 
+            mat: np.array, 
+            locked: list[list[bool]], 
+            cell_size: int, 
+            selected_cell: tuple[int]=None, 
+            lives: int=3
+    ) -> None:
         """
         Vẽ các 
             screen: Tạo màn hình từ pygame với kích thước width x heigh
@@ -157,7 +167,14 @@ class SudokuGame:
         lives_text = font.render(f"Lives: {lives}", True, Color.BLACK.value)
         screen.blit(lives_text, (10, cell_size * 9 + 5))
 
-    def draw_button(self, screen, text, x, y, w, h, inactive_color, active_color, text_color=Color.WHITE.value):
+    def draw_button(self, 
+            screen: pygame.surface.Surface, 
+            text: str, 
+            x: int, y: int, 
+            w: int, h: int, 
+            inactive_color, active_color, 
+            text_color=Color.WHITE.value
+    ) -> None:
         """
         Thêm các nút bấm vào, trả về giá trị True nếu bấm vào
             screen
@@ -179,8 +196,7 @@ class SudokuGame:
 
         return click[0] == 1 and x + w > mouse[0] > x and y + h > mouse[1] > y
 
-
-    def run(self):
+    def run(self) -> None:
         """
         Chạy game
         """

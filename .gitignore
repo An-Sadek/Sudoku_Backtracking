@@ -4,3 +4,5 @@ sudoku_history.csv
 sudokutest.py
 *.csv
 sudoku.ipynb
+test.py
+sudoku_core.py
