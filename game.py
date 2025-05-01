@@ -12,8 +12,6 @@ class Color(Enum):
     BLACK = (0, 0, 0)
     GRAY = (200, 200, 200)
     WHITE = (255, 255, 255)
-
-    RED = (255, 0, 0)
     GREEN = (0, 255, 0) 
 
     SCREEN = (230, 240, 255) # Xanh dương nhạt
@@ -84,22 +82,22 @@ class SudokuGame:
         ], dtype=int)
         self.locked = [[True if self.mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
 
-        # Khởi tạo game, tạo screen
+        # Khởi tạo game, tạo screen, lưu thuộc tính
         pygame.init()
 
         self.cell_size = cell_size
         self.button_height = button_height
-        self.screen_width = cell_size * 9
-        self.screen_height = cell_size * 9 + 80
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-
-        # Thông tin các nút bấm
         self.button_width = button_width
-        self.button_height = button_height
         self.button_spacing = button_spacing
+
+        self.screen_width = cell_size * 9
         self.total_buttons_width = self.button_width * 3 + self.button_spacing * 2
         self.button_x_start = (self.screen_width - self.total_buttons_width) // 2
-        self.button_y = self.cell_size * 9 + 40
+        self.button_y_start = self.cell_size * 9 + 40
+
+        self.screen_height = cell_size * 9 + 100
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        self.screen.fill(Color.SCREEN.value)
 
     def reset(self) -> None:
         """
@@ -146,32 +144,51 @@ class SudokuGame:
             selected_cell: tuple[int]=None
     ) -> None:
         """
-        Vẽ bảng, bao gồm tô màu các ô gợi ý, vẽ đường phân chia
-            screen: Tạo màn hình từ pygame với kích thước width x heigh
+        Vẽ bảng câu đố, bao gồm tô màu các ô gợi ý, vẽ đường phân chia
+            screen: Tạo màn hình từ pygame với kích thước width x height
             mat: Ma trận sudoku được lấy từ self.grid
             locked: Ma trận boolean các số đã được gợi ý
             cell_size: Kích thước mỗi ô
             selected_cell: Vị trí ô hiện tại đang chọn (x, y)
         """
-        screen.fill(Color.SCREEN.value)
-
-        # Nền xám cho gợi ý 
+        # Tô màu cho ô, màu xám nếu thuộc ô gợi ý
         for i in range(9):
             for j in range(9):
                 color = Color.GRAY.value if locked[i][j] else Color.WHITE.value
-                pygame.draw.rect(screen, color, (j * cell_size, i * cell_size, cell_size, cell_size))
+                pygame.draw.rect(
+                    screen, 
+                    color, 
+                    (j * cell_size, i * cell_size, cell_size, cell_size)
+                )
 
         # Vẽ các đường phân chia
         for i in range(10):
             thickness = 4 if i % 3 == 0 else 1 # Đường chia cắt các khối dày hơn
-            pygame.draw.line(screen, Color.GRID_LINE.value, (i * cell_size, 0), (i * cell_size, 9 * cell_size), thickness)
-            pygame.draw.line(screen, Color.GRID_LINE.value, (0, i * cell_size), (9 * cell_size, i * cell_size), thickness)
+
+            # Vẽ theo trục tung Oy
+            pygame.draw.line(
+                screen, # Màn hình
+                Color.GRID_LINE.value, # Chọn màu
+                (i * cell_size, 0), # Toạ độ đầu
+                (i * cell_size, 9 * cell_size), # Toạ độ cuối
+                thickness # Độ dày của đường
+            )
+            
+            # Vẽ theo trung hoành Ox
+            pygame.draw.line(
+                screen, 
+                Color.GRID_LINE.value, 
+                (0, i * cell_size), 
+                (9 * cell_size, i * cell_size), 
+                thickness
+            )
         
         # Vẽ đường viền cho ô đang được chọn (trừ ô gợi ý)
         if selected_cell and not locked[selected_cell[0]][selected_cell[1]]:
             i, j = selected_cell
             pygame.draw.rect(screen, Color.SELECTED.value, (j * cell_size, i * cell_size, cell_size, cell_size), 4)
         
+        # Tạo font chữ
         font = pygame.font.Font(None, 40)
 
         for i in range(9):
@@ -179,10 +196,10 @@ class SudokuGame:
                 if mat[i][j] != 0:
                     num = mat[i][j]
                     if locked[i][j]:
-                        color = Color.BLACK.value  # Các ô không phải gợi ý có chữ đen
-                    
+                        color = Color.BLACK.value  # Các ô gợi ý có chữ đen
                     else:
-                        color = Color.GREEN.value
+                        color = Color.GREEN.value # Các ô trống có chữ màu lục
+
                     text = font.render(str(num), True, color)
                     text_rect = text.get_rect(center=(j * cell_size + cell_size / 2, i * cell_size + cell_size / 2))
                     screen.blit(text, text_rect)
@@ -197,7 +214,7 @@ class SudokuGame:
     ) -> bool:
         """
         Vẽ các nút bấm vào, trả về giá trị True nếu bấm vào
-            screen
+            screen: Màn hình game
             text: Nội dung nút bấm
             x, y: Toạ độ của nút bấm
             w, h: Chiều dài, chiều rộng của nút
@@ -212,23 +229,25 @@ class SudokuGame:
         click = pygame.mouse.get_pressed()
 
         # Chọn màu cho nút khi chưa được và được rê chuột vào
-        color = active_color if (x + w > mouse[0] > x and y + h > mouse[1] > y) else inactive_color
+        is_in_area = x + w > mouse[0] > x and y + h > mouse[1] > y
+        color = active_color if is_in_area else inactive_color
         pygame.draw.rect(screen, color, (x, y, w, h), border_radius=10)
         font = pygame.font.Font(None, 36)
-        text_surf = font.render(text, True, text_color)
-        text_rect = text_surf.get_rect(center=(x + w / 2, y + h / 2))
-        screen.blit(text_surf, text_rect)
 
-        return click[0] == 1 and x + w > mouse[0] > x and y + h > mouse[1] > y
+        # Tạo text 
+        text_surf = font.render(text, True, text_color)
+
+        # Tạo rect
+        text_rect = text_surf.get_rect(center=(x + w / 2, y + h / 2))
+        screen.blit(text_surf, text_rect) # Hiện lên surface
+
+        return click[0] == 1 and is_in_area
 
     def run(self) -> None:
         """
         Chạy game
         """
         pygame.display.set_caption("Sudoku Game")
-
-        #mat = self.mat
-        #locked = [[True if mat[i][j] != 0 else False for j in range(9)] for i in range(9)]
 
         # Bắt đầu game
         running = True
@@ -242,6 +261,7 @@ class SudokuGame:
                 if event.type == pygame.QUIT:
                     running = False
                     
+                # Nếu chưa thắng trò chơi
                 if not self.won:
 
                     # Lấy vị trí chuột nếu bấm vào ô
@@ -267,27 +287,33 @@ class SudokuGame:
                         # Nhập số vào từ bàn phím
                         elif event.unicode.isdigit() and int(event.unicode) in range(1, 10):
                             num = int(event.unicode)
-                            if self.solver.is_safe(self.mat, i, j, num):
-                                self.mat[i][j] = num
-                            else:
-                                self.mat[i][j] = num
+                            self.mat[i][j] = num
 
             # Vẽ bảng
             self.draw_board(self.screen, self.mat, self.locked, self.cell_size, self.selected_cell)
+
+            # Hiện thông báo chiến thắng
+            if not self.won and self.is_board_complete_and_valid(self.mat, self.locked):
+                self.solved = True
+                self.won = True
+
+            if self.won:
+                font = pygame.font.Font(None, 100)
+                win_text = font.render("You Win!", True, Color.WIN.value)
+                text_rect = win_text.get_rect(center=(self.screen_width / 2, self.cell_size*9 / 3))
+                self.screen.blit(win_text, text_rect)
+
 
             if not self.solved:
 
                 # Vẽ nút "Solve", nếu bấm vào thì giải luôn
                 if self.draw_button(
                     self.screen, "Solve", 
-                    self.button_x_start, self.button_y, 
+                    self.button_x_start, self.button_y_start, 
                     self.button_width, self.button_height,
                     Color.INACTIVE.value, Color.ACTIVE.value
                 ):
-                    # Reset lại lịch sử
-                    self.history = SudokuHistory() 
-
-                    # Phải copy ra để không thay đổi ma trận
+                    # Giải câu đố bằng hàm solve_sudoku
                     solvable = self.solver.solve_sudoku(self.mat, 0, 0, self.history)
                     if solvable:
                         self.solved = True
@@ -296,7 +322,7 @@ class SudokuGame:
 
             # Nếu giải rồi thì huỷ nút Solve
             else:
-                self.draw_button(self.screen, "Solved!", self.button_x_start, self.button_y, 
+                self.draw_button(self.screen, "Solved!", self.button_x_start, self.button_y_start, 
                             self.button_width, self.button_height,
                             Color.ACTIVE.value, Color.ACTIVE.value, Color.WHITE.value)
 
@@ -304,33 +330,22 @@ class SudokuGame:
             if self.draw_button(
                 self.screen, "New", 
                 self.button_x_start + self.button_width + self.button_spacing, 
-                self.button_y, self.button_width, self.button_height, 
+                self.button_y_start, self.button_width, self.button_height, 
                 Color.INACTIVE.value, Color.ACTIVE.value
             ):
                 self.reset()
-                self.solved = False
 
             # Nút thoát game "Quit"
             if self.draw_button(
                 self.screen, 
                 "Quit", 
                 self.button_x_start + (self.button_width + self.button_spacing) * 2, 
-                self.button_y,
+                self.button_y_start,
                 self.button_width, self.button_height, 
                 Color.INACTIVE.value, Color.QUIT.value
             ):
                 running = False
             
-            # Hiện thông báo chiến thắng
-            if not self.won and self.is_board_complete_and_valid(self.mat, self.locked):
-                self.won = True
-
-            if self.won:
-                font = pygame.font.Font(None, 100)
-                win_text = font.render("You Win!", True, Color.WIN.value)
-                text_rect = win_text.get_rect(center=(self.screen_width / 2, self.screen_height / 3))
-                self.screen.blit(win_text, text_rect)
-
             pygame.display.flip()
 
         pygame.quit()
